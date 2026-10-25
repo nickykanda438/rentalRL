@@ -15,11 +15,10 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // Compte administrateur de démonstration (à changer en production)
+        User::updateOrCreate(
+            ['email' => 'admin@rental.cd'],
+            ['name' => 'Administrateur', 'password' => 'rental2026'],
+        );
     }
 }
