@@ -6,6 +6,7 @@ use App\Models\Avance;
 use App\Models\Bulletin;
 use App\Models\Employe;
 use App\Support\Format;
+use App\Support\SourceArgent;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -38,6 +39,9 @@ class AvanceController extends Controller
             'mode_paiement.in' => 'Mode de paiement invalide.',
         ]);
 
+        $source = SourceArgent::valider($request);
+        SourceArgent::verifierReste($source, (float) $donnees['montant']);
+
         $employe = Employe::findOrFail($donnees['employe_id']);
         $mois = Carbon::parse($donnees['date_avance'])->format('Y-m');
 
@@ -56,17 +60,20 @@ class AvanceController extends Controller
             ]);
         }
 
-        $avance = Avance::create($donnees + ['mois' => $mois, 'statut' => 'En cours']);
+        $avance = Avance::create($donnees + $source + ['mois' => $mois, 'statut' => 'En cours']);
         Bulletin::recalculerPour($employe, $mois);
+        $avertissement = SourceArgent::avertissement($source);
 
         // Avance donnée depuis la fiche employé : on y retourne
         if ($request->input('retour') === 'employe') {
-            return redirect()->route('employes.show', $employe)
-                ->with('success', 'Avance de '.Format::usd($avance->montant)." $ enregistrée (réf. {$avance->numero}), déduite du salaire de ".Format::mois($mois).'.');
+            return redirect()->route('employes.show', $employe)->with(array_filter([
+                'success' => 'Avance de '.Format::usd($avance->montant)." $ enregistrée (réf. {$avance->numero}), payée avec « {$avance->sourceLibelle()} », déduite du salaire de ".Format::mois($mois).'.',
+                'error' => $avertissement,
+            ]));
         }
 
         return redirect()->route('paie.index', ['mois' => $mois])
-            ->with(['success' => 'Avance enregistrée.', 'onglet' => 'avances']);
+            ->with(array_filter(['success' => "Avance {$avance->numero} enregistrée, payée avec « {$avance->sourceLibelle()} ».", 'error' => $avertissement, 'onglet' => 'avances']));
     }
 
     /**

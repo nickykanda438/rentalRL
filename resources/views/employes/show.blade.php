@@ -11,6 +11,7 @@
         $apercu = Bulletin::apercu($employe, $moisSalaire);
     }
     $avanceMois = (float) $employe->avances()->where('mois', now()->format('Y-m'))->sum('montant');
+    ['caisse' => $caisse, 'revenusDisponibles' => $revenusDisponibles] = \App\Support\SourceArgent::options();
     $select = 'block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-primary-600 focus:ring-primary-600';
 
     // Affiche « — » quand une information n'est pas renseignée
@@ -143,7 +144,7 @@
                                         <td class="py-2 font-mono text-xs font-semibold">{{ $b->numero }}</td>
                                         <td class="py-2">{{ \App\Support\Format::mois($b->mois) }}</td>
                                         <td class="py-2 text-right font-medium tabular-nums">{{ \App\Support\Format::usd($b->net_a_payer) }}</td>
-                                        <td class="py-2 pl-4"><x-badge :color="$b->couleurStatut()">{{ $b->statut }}</x-badge></td>
+                                        <td class="py-2 pl-4"><x-badge :color="$b->couleurStatut()">{{ $b->statut }}</x-badge>@if ($b->estPaye())<span class="block text-xs text-gray-500">{{ $b->sourceLibelle() }}</span>@endif</td>
                                         <td class="py-2 text-right print:hidden"><a href="{{ route('paie.bulletins.imprimer', ['bulletin' => $b->id]) }}" target="_blank" class="text-primary-700 hover:underline">Bulletin</a></td>
                                     </tr>
                                 @endforeach
@@ -187,6 +188,7 @@
                     <x-field prefix="salaire" label="Mode de paiement" name="mode_paiement" :options="Avance::MODES_PAIEMENT" />
                     <x-field prefix="salaire" label="N° de transaction (facultatif)" name="reference" placeholder="Mobile Money, virement..." />
                 </div>
+                <x-source-argent p="salaire" :caisse="$caisse" :revenus="$revenusDisponibles" :montant="$apercu['net'] - $apercu['primes']" />
             </x-modal>
 
             {{-- Donner une avance --}}
@@ -205,6 +207,7 @@
                     <x-field prefix="avance" label="N° de transaction (facultatif)" name="reference" placeholder="Mobile Money, virement..." />
                     <div class="sm:col-span-2"><x-field prefix="avance" label="Commentaire" name="commentaire" type="textarea" placeholder="Facultatif" /></div>
                 </div>
+                <x-source-argent p="avance" :caisse="$caisse" :revenus="$revenusDisponibles" />
             </x-modal>
 
             {{-- Accorder un crédit --}}
@@ -221,6 +224,7 @@
                     <div class="sm:col-span-2"><x-field prefix="credit" label="Commentaire" name="commentaire" type="textarea" placeholder="Motif du crédit (facultatif)" /></div>
                 </div>
                 <p id="credit-apercu" class="rounded-lg bg-primary-50 px-4 py-3 text-sm text-primary-800">Saisissez le montant, le taux et la durée pour voir la mensualité.</p>
+                <x-source-argent p="credit" :caisse="$caisse" :revenus="$revenusDisponibles" />
             </x-modal>
         @endif
 

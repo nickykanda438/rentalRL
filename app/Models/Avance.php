@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\ASourceArgent;
 use App\Models\Concerns\AUnNumero;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Avance extends Model
 {
-    use AUnNumero;
+    use ASourceArgent, AUnNumero;
 
     /** Numéro automatique : AV-AAAAMM-0001 */
     public const PREFIXE_NUMERO = 'AV';
@@ -19,6 +20,7 @@ class Avance extends Model
 
     protected $fillable = [
         'employe_id', 'montant', 'date_avance', 'mois', 'mode_paiement', 'reference', 'commentaire', 'statut',
+        'source', 'autre_revenu_id',
     ];
 
     protected function casts(): array

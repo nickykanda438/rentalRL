@@ -297,7 +297,7 @@ class LocationController extends Controller
         }
 
         // Client : retrouvé par nom + téléphone, sinon créé ; l'adresse est mise à jour
-        $client = Client::firstOrNew(['nom' => trim($d['client_nom']), 'telephone' => $d['client_telephone'] ?: null]);
+        $client = Client::firstOrNew(['nom' => trim($d['client_nom']), 'telephone' => ($d['client_telephone'] ?? null) ?: null]);
         if (filled($d['client_adresse'] ?? null)) {
             $client->adresse = $d['client_adresse'];
         }

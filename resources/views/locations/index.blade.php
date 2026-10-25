@@ -114,7 +114,7 @@
         @endforeach
 
         {{-- Rouvre la bonne fenêtre si la validation a échoué --}}
-        @if (request('nouvelle') && ! $errors->any())
+        @if (request()->has('nouvelle') && ! $errors->any())
             <script>
                 document.addEventListener('DOMContentLoaded', () => document.querySelector('[data-modal-toggle="modal-location"]')?.click());
             </script>

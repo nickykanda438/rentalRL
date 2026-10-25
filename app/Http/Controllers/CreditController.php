@@ -6,6 +6,7 @@ use App\Models\Bulletin;
 use App\Models\Credit;
 use App\Models\Employe;
 use App\Support\Format;
+use App\Support\SourceArgent;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -48,21 +49,29 @@ class CreditController extends Controller
             'mois_debut' => 'premier mois de retenue',
         ]);
 
+        // Le montant accordé sort de la source choisie
+        $source = SourceArgent::valider($request);
+        SourceArgent::verifierReste($source, (float) $donnees['montant']);
+
         $calcul = Credit::calculer((float) $donnees['montant'], (float) $donnees['taux'], (int) $donnees['duree_mois']);
 
-        $credit = Credit::create($donnees + $calcul + ['statut' => 'Actif']);
+        $credit = Credit::create($donnees + $calcul + $source + ['statut' => 'Actif']);
+        $avertissement = SourceArgent::avertissement($source);
         Bulletin::recalculerPour($credit->employe, $credit->mois_debut);
 
         if ($request->input('retour') === 'employe') {
-            return redirect()->route('employes.show', $credit->employe)
-                ->with('success', 'Crédit accordé : '.Format::usd($credit->mensualite).' $ par mois à partir de '.Format::mois($credit->mois_debut).'.');
+            return redirect()->route('employes.show', $credit->employe)->with(array_filter([
+                'success' => 'Crédit de '.Format::usd($credit->montant)." $ accordé avec « {$credit->sourceLibelle()} » : ".Format::usd($credit->mensualite).' $ par mois à partir de '.Format::mois($credit->mois_debut).'.',
+                'error' => $avertissement,
+            ]));
         }
 
         return redirect()->route('paie.index', ['mois' => $request->input('retour_mois')])
-            ->with([
-                'success' => "Crédit accordé : {$credit->employe->nom} remboursera ".Format::usd($credit->mensualite).' $ par mois à partir de '.Format::mois($credit->mois_debut).'.',
+            ->with(array_filter([
+                'success' => "Crédit accordé avec « {$credit->sourceLibelle()} » : {$credit->employe->nom} remboursera ".Format::usd($credit->mensualite).' $ par mois à partir de '.Format::mois($credit->mois_debut).'.',
+                'error' => $avertissement,
                 'onglet' => 'credits',
-            ]);
+            ]));
     }
 
     /**

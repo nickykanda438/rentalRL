@@ -26,7 +26,7 @@
 @endphp
 
 {{-- Barre latérale (tiroir Flowbite sur mobile) --}}
-<aside id="sidebar" class="fixed left-0 top-0 z-40 flex h-screen w-64 -translate-x-full flex-col bg-gradient-to-b from-primary-800 to-primary-900 px-3.5 py-5 text-white transition-transform lg:translate-x-0" aria-label="Navigation principale">
+<aside id="sidebar" class="fixed left-0 top-0 z-40 flex h-screen w-64 -translate-x-full flex-col bg-gradient-to-b from-primary-800 to-primary-900 px-3.5 py-5 text-white transition-transform lg:translate-x-0 print:hidden" aria-label="Navigation principale">
     <a href="{{ route('dashboard') }}" class="mb-7 px-2"><x-logo variant="light" class="h-9" /></a>
     <nav class="flex flex-1 flex-col gap-0.5">
         @foreach ($menu as $item)
@@ -50,9 +50,9 @@
     </div>
 </aside>
 
-<div class="lg:pl-64">
+<div class="lg:pl-64 print:pl-0">
     {{-- En-tête --}}
-    <header class="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-gray-200 bg-white px-4 sm:px-6">
+    <header class="sticky top-0 z-30 flex h-16 print:hidden items-center gap-4 border-b border-gray-200 bg-white px-4 sm:px-6">
         <button type="button" data-drawer-target="sidebar" data-drawer-toggle="sidebar" aria-controls="sidebar" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-gray-700 lg:hidden">
             <x-icon name="menu" /><span class="sr-only">Ouvrir le menu</span>
         </button>

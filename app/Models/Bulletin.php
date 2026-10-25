@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\ASourceArgent;
 use App\Models\Concerns\AUnNumero;
+use Illuminate\Validation\ValidationException;
+use App\Support\Format;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 class Bulletin extends Model
 {
-    use AUnNumero;
+    use ASourceArgent, AUnNumero;
 
     /** Numéro automatique : SAL-AAAAMM-0001 */
     public const PREFIXE_NUMERO = 'SAL';
@@ -19,7 +22,7 @@ class Bulletin extends Model
 
     protected $fillable = [
         'employe_id', 'mois', 'salaire_base', 'primes', 'total_avances', 'total_credits', 'net_a_payer',
-        'statut', 'date_paiement', 'mode_paiement', 'reference',
+        'statut', 'date_paiement', 'mode_paiement', 'reference', 'source', 'autre_revenu_id',
     ];
 
     protected function casts(): array
@@ -107,9 +110,11 @@ class Bulletin extends Model
     /**
      * Paie le salaire d'un employé pour un mois : prépare le bulletin à jour, le marque payé,
      * déduit les avances du mois et solde les crédits remboursés.
+     * Le net payé sort de la source choisie (recettes de location ou autre revenu) : si le revenu
+     * n'a pas assez de reste, rien n'est enregistré.
      * Retourne null si le salaire de ce mois est déjà payé.
      *
-     * @param  array{date_paiement: string, mode_paiement: string, reference?: ?string, primes?: float|string|null}  $donnees
+     * @param  array{date_paiement: string, mode_paiement: string, reference?: ?string, primes?: float|string|null, source?: string, autre_revenu_id?: ?int}  $donnees
      */
     public static function payerPour(Employe $employe, string $mois, array $donnees): ?self
     {
@@ -124,9 +129,22 @@ class Bulletin extends Model
                 'date_paiement' => $donnees['date_paiement'],
                 'mode_paiement' => $donnees['mode_paiement'],
                 'reference' => $donnees['reference'] ?? null,
+                'source' => $donnees['source'] ?? 'location',
+                'autre_revenu_id' => ($donnees['source'] ?? 'location') === 'revenu' ? $donnees['autre_revenu_id'] : null,
                 'statut' => 'Payé',
             ]);
             $bulletin->calculerNet();
+
+            // Le revenu choisi doit couvrir le net (la transaction est annulée sinon)
+            if ($bulletin->source === 'revenu') {
+                $reste = AutreRevenu::findOrFail($bulletin->autre_revenu_id)->reste();
+                if ((float) $bulletin->net_a_payer > $reste + 0.001) {
+                    throw ValidationException::withMessages([
+                        'source' => "Salaire de {$employe->nom} : il ne reste que ".Format::usd($reste).' $ sur ce revenu pour payer '.Format::usd($bulletin->net_a_payer).' $.',
+                    ]);
+                }
+            }
+
             $bulletin->save();
 
             Avance::where('employe_id', $employe->id)->where('mois', $mois)->update(['statut' => 'Déduite']);

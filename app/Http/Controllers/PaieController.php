@@ -28,14 +28,14 @@ class PaieController extends Controller
             }
         }));
 
-        $avances = Avance::with('employe')->where('mois', $mois)->tap($parEmploye)
+        $avances = Avance::with(['employe', 'autreRevenu'])->where('mois', $mois)->tap($parEmploye)
             ->orderByDesc('date_avance')->get();
 
-        $credits = Credit::with(['employe', 'remboursements.bulletin'])->tap($parEmploye)
+        $credits = Credit::with(['employe', 'remboursements.bulletin', 'autreRevenu'])->tap($parEmploye)
             ->orderByRaw("statut = 'Soldé'")   // crédits actifs d'abord
             ->orderByDesc('date_octroi')->get();
 
-        $bulletins = Bulletin::with('employe')->where('mois', $mois)->tap($parEmploye)->get()
+        $bulletins = Bulletin::with(['employe', 'autreRevenu'])->where('mois', $mois)->tap($parEmploye)->get()
             ->sortBy('employe.nom')->values();
 
         $employes = Employe::where('statut', 'Actif')->orderBy('nom')->get(['id', 'nom', 'salaire']);
@@ -66,7 +66,10 @@ class PaieController extends Controller
 
         $onglet = session('onglet', $request->query('onglet', 'avances'));
 
-        return view('paie.index', compact('mois', 'avances', 'credits', 'bulletins', 'employes', 'stats', 'onglet', 'aPayer'));
+        return view('paie.index', array_merge(
+            compact('mois', 'avances', 'credits', 'bulletins', 'employes', 'stats', 'onglet', 'aPayer'),
+            \App\Support\SourceArgent::options()
+        ));
     }
 
     /**

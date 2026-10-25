@@ -6,6 +6,7 @@ use App\Models\Avance;
 use App\Models\Bulletin;
 use App\Models\Employe;
 use App\Support\Format;
+use App\Support\SourceArgent;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -65,10 +66,14 @@ class BulletinController extends Controller
             'mode_paiement.in' => 'Mode de paiement invalide.',
         ]);
 
-        Bulletin::payerPour($bulletin->employe, $bulletin->mois, $donnees);
+        $source = SourceArgent::valider($request);
+        $paye = Bulletin::payerPour($bulletin->employe, $bulletin->mois, $donnees + $source);
 
-        return redirect()->route('paie.index', ['mois' => $bulletin->mois])
-            ->with(['success' => "Salaire de {$bulletin->employe->nom} payé.", 'onglet' => 'bulletins']);
+        return redirect()->route('paie.index', ['mois' => $bulletin->mois])->with(array_filter([
+            'success' => "Salaire de {$bulletin->employe->nom} payé : ".Format::usd($paye?->net_a_payer).' $ avec « '.$paye?->sourceLibelle().' ».',
+            'error' => SourceArgent::avertissement($source),
+            'onglet' => 'bulletins',
+        ]));
     }
 
     /**
@@ -88,11 +93,20 @@ class BulletinController extends Controller
             'mode_paiement.in' => 'Mode de paiement invalide.',
         ]);
 
+        $source = SourceArgent::valider($request);
+        $employes = Employe::where('statut', 'Actif')->orderBy('nom')->get();
+
+        // Le revenu choisi doit couvrir le total avant de commencer (tout ou rien)
+        $totalPrevu = $employes->map(fn ($e) => Bulletin::apercu($e, $mois))
+            ->reject(fn ($a) => $a['deja_paye'] || $a['net'] < 0)->sum('net');
+        SourceArgent::verifierReste($source, (float) $totalPrevu);
+
+        $donnees += $source;
         $payes = 0;
         $total = 0.0;
         $ignores = [];
 
-        foreach (Employe::where('statut', 'Actif')->orderBy('nom')->get() as $employe) {
+        foreach ($employes as $employe) {
             $apercu = Bulletin::apercu($employe, $mois);
             if ($apercu['deja_paye']) {
                 continue;
@@ -115,12 +129,13 @@ class BulletinController extends Controller
             return back()->with(['error' => 'Aucun salaire à payer : tous les salaires de '.Format::mois($mois).' sont déjà payés.', 'onglet' => 'bulletins']);
         }
 
-        $message = "{$payes} salaire(s) payé(s) pour ".Format::mois($mois).' : '.Format::usd($total).' $ au total.';
+        $message = "{$payes} salaire(s) payé(s) pour ".Format::mois($mois).' : '.Format::usd($total).' $ au total, avec « '.($source['source'] === 'revenu' ? \App\Models\AutreRevenu::find($source['autre_revenu_id'])?->numero : 'Recettes de location').' ».';
         if ($ignores) {
             $message .= ' Non payé(s) car le net est négatif : '.implode(', ', $ignores).'.';
         }
 
-        return redirect()->route('paie.index', ['mois' => $mois])->with(['success' => $message, 'onglet' => 'bulletins']);
+        return redirect()->route('paie.index', ['mois' => $mois])
+            ->with(array_filter(['success' => $message, 'error' => SourceArgent::avertissement($source), 'onglet' => 'bulletins']));
     }
 
     /**
@@ -153,14 +168,17 @@ class BulletinController extends Controller
             throw ValidationException::withMessages(['mois' => 'Le net à payer serait négatif : les retenues dépassent le salaire.']);
         }
 
-        $bulletin = Bulletin::payerPour($employe, $donnees['mois'], $donnees);
+        $source = SourceArgent::valider($request);
+        $bulletin = Bulletin::payerPour($employe, $donnees['mois'], $donnees + $source);
 
         if (! $bulletin) {
             return back()->with('error', "Le salaire de {$employe->nom} pour ".Format::mois($donnees['mois']).' est déjà payé.');
         }
 
-        return redirect()->route('employes.show', $employe)->with('success',
-            "Salaire de ".Format::mois($bulletin->mois).' payé : '.Format::usd($bulletin->net_a_payer)." $ (réf. {$bulletin->numero}).");
+        return redirect()->route('employes.show', $employe)->with(array_filter([
+            'success' => 'Salaire de '.Format::mois($bulletin->mois).' payé : '.Format::usd($bulletin->net_a_payer)." $ (réf. {$bulletin->numero}) avec « {$bulletin->sourceLibelle()} ».",
+            'error' => SourceArgent::avertissement($source),
+        ]));
     }
 
     /**

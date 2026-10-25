@@ -72,7 +72,7 @@
                             <td class="{{ $th }} text-right tabular-nums">{{ Format::usd($avance->montant) }}</td>
                             <td class="{{ $th }}">{{ $avance->date_avance->format('d/m/Y') }}</td>
                             <td class="{{ $th }} font-mono text-xs font-semibold text-gray-700">{{ $avance->numero }}</td>
-                            <td class="{{ $th }}">{{ $avance->mode_paiement }}@if ($avance->reference)<span class="block text-xs text-gray-500">Trans. {{ $avance->reference }}</span>@endif</td>
+                            <td class="{{ $th }}">{{ $avance->mode_paiement }}@if ($avance->reference)<span class="block text-xs text-gray-500">Trans. {{ $avance->reference }}</span>@endif<span class="block text-xs {{ $avance->source === 'revenu' ? 'text-accent-700' : 'text-primary-700' }}">Payé avec : @if ($avance->source === 'revenu' && $avance->autreRevenu)<a href="{{ route('revenus.show', $avance->autreRevenu) }}" class="hover:underline">{{ $avance->sourceLibelle() }}</a>@else{{ $avance->sourceLibelle() }}@endif</span></td>
                             <td class="{{ $th }}"><x-badge :color="$avance->couleurStatut()">{{ $avance->statut }}</x-badge></td>
                             <td class="{{ $th }}">
                                 @if ($avance->statut === 'En cours')
@@ -105,7 +105,7 @@
                             <td class="{{ $th }} text-right tabular-nums">{{ Format::usd($credit->mensualite) }}</td>
                             <td class="{{ $th }}">{{ Format::mois($credit->mois_debut) }}</td>
                             <td class="{{ $th }} text-right font-semibold tabular-nums">{{ Format::usd($reste) }}</td>
-                            <td class="{{ $th }}"><x-badge :color="$credit->couleurStatut()">{{ $credit->statut }}</x-badge></td>
+                            <td class="{{ $th }}"><x-badge :color="$credit->couleurStatut()">{{ $credit->statut }}</x-badge><span class="block text-xs {{ $credit->source === 'revenu' ? 'text-accent-700' : 'text-primary-700' }}">Payé avec : @if ($credit->source === 'revenu' && $credit->autreRevenu)<a href="{{ route('revenus.show', $credit->autreRevenu) }}" class="hover:underline">{{ $credit->sourceLibelle() }}</a>@else{{ $credit->sourceLibelle() }}@endif</span></td>
                             <td class="{{ $th }}">
                                 @unless ($credit->aDesRemboursements())
                                     <x-row-actions :delete="route('paie.credits.destroy', $credit)" :confirm="'Supprimer le crédit de '.$credit->employe->nom.' ?'" />
@@ -152,7 +152,7 @@
                             <td class="{{ $th }} text-right font-semibold tabular-nums {{ $bulletin->net_a_payer < 0 ? 'text-red-600' : '' }}">{{ Format::usd($bulletin->net_a_payer) }}</td>
                             <td class="{{ $th }}">
                                 <x-badge :color="$bulletin->couleurStatut()">{{ $bulletin->statut }}</x-badge>
-                                @if ($bulletin->estPaye())<span class="ml-1 text-xs text-gray-500">le {{ $bulletin->date_paiement->format('d/m') }}</span>@endif
+                                @if ($bulletin->estPaye())<span class="ml-1 text-xs text-gray-500">le {{ $bulletin->date_paiement->format('d/m') }}</span><span class="block text-xs {{ $bulletin->source === 'revenu' ? 'text-accent-700' : 'text-primary-700' }}">Payé avec : @if ($bulletin->source === 'revenu' && $bulletin->autreRevenu)<a href="{{ route('revenus.show', $bulletin->autreRevenu) }}" class="hover:underline">{{ $bulletin->sourceLibelle() }}</a>@else{{ $bulletin->sourceLibelle() }}@endif</span>@endif
                             </td>
                             <td class="{{ $th }}">
                                 <div class="flex justify-end gap-1">
@@ -196,6 +196,7 @@
                     <x-field prefix="payer-tout" label="Date de paiement *" name="date_paiement" type="date" :value="now()->format('Y-m-d')" required />
                     <x-field prefix="payer-tout" label="Mode de paiement" name="mode_paiement" :options="Avance::MODES_PAIEMENT" />
                 </div>
+                <x-source-argent p="payer-tout" :caisse="$caisse" :revenus="$revenusDisponibles" :montant="$aPayer['total']" />
             </x-modal>
         @endif
 
@@ -218,6 +219,7 @@
                 <x-field prefix="avance" label="N° de transaction (facultatif)" name="reference" placeholder="Mobile Money, virement..." />
                 <div class="sm:col-span-2"><x-field prefix="avance" label="Commentaire" name="commentaire" type="textarea" placeholder="Facultatif" /></div>
             </div>
+            <x-source-argent p="avance" :caisse="$caisse" :revenus="$revenusDisponibles" />
             <p class="text-xs text-gray-500">Un numéro de référence (AV-…) est attribué automatiquement. L'avance sera déduite du salaire du mois de sa date.</p>
         </x-modal>
 
@@ -243,6 +245,7 @@
                 <div class="sm:col-span-2"><x-field prefix="credit" label="Commentaire" name="commentaire" type="textarea" placeholder="Motif du crédit (facultatif)" /></div>
             </div>
             <p id="credit-apercu" class="rounded-lg bg-primary-50 px-4 py-3 text-sm text-primary-800">Saisissez le montant, le taux et la durée pour voir la mensualité.</p>
+            <x-source-argent p="credit" :caisse="$caisse" :revenus="$revenusDisponibles" />
         </x-modal>
 
         {{-- Paiement d'un bulletin --}}
@@ -262,6 +265,7 @@
                     <x-field :prefix="'payer'.$bulletin->id" label="Mode de paiement" name="mode_paiement" :options="Avance::MODES_PAIEMENT" />
                     <x-field :prefix="'payer'.$bulletin->id" label="N° de transaction (facultatif)" name="reference" placeholder="Mobile Money, virement..." />
                 </div>
+                <x-source-argent :p="'payer'.$bulletin->id" :caisse="$caisse" :revenus="$revenusDisponibles" :montant="(float) $bulletin->salaire_base - (float) $bulletin->total_avances - (float) $bulletin->total_credits" />
             </x-modal>
         @endforeach
 

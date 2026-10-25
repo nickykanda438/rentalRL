@@ -1,12 +1,17 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\AutreRevenuController;
 use App\Http\Controllers\AvanceController;
 use App\Http\Controllers\BulletinController;
+use App\Http\Controllers\CategorieDepenseController;
 use App\Http\Controllers\CreditController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DepenseController;
 use App\Http\Controllers\EmployeController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\PaieController;
+use App\Http\Controllers\RapportController;
 use App\Http\Controllers\VehiculeController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,8 +26,8 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 
-    // Écrans (données d'exemple pour l'instant, à brancher sur les modèles)
-    Route::view('/tableau-de-bord', 'dashboard')->name('dashboard');
+    // Tableau de bord (dynamique). Besoins, Rapports et Paramètres : encore des maquettes
+    Route::get('/tableau-de-bord', DashboardController::class)->name('dashboard');
     // Budget location (dynamique)
     Route::get('/locations/exporter', [LocationController::class, 'exporter'])->name('locations.exporter');
     Route::get('/locations/{location}/contrat', [LocationController::class, 'contrat'])->name('locations.contrat');
@@ -30,8 +35,18 @@ Route::middleware('auth')->group(function () {
     Route::patch('/locations/{location}/annuler', [LocationController::class, 'annuler'])->name('locations.annuler');
     Route::resource('locations', LocationController::class)->except(['create', 'edit']);
 
-    Route::view('/autres-revenus', 'revenus.index')->name('revenus.index');
-    Route::view('/depenses', 'depenses.index')->name('depenses.index');
+    // Autres revenus (dynamique) : URL /autres-revenus, noms de routes revenus.*
+    Route::get('/autres-revenus/exporter', [AutreRevenuController::class, 'exporter'])->name('revenus.exporter');
+    Route::resource('autres-revenus', AutreRevenuController::class)
+        ->only(['index', 'show', 'store', 'update', 'destroy'])
+        ->names('revenus')
+        ->parameters(['autres-revenus' => 'revenu']);
+    // Dépenses (dynamique) : chaque dépense est payée avec les recettes de location ou avec une somme reçue
+    Route::post('/depenses/categories', [CategorieDepenseController::class, 'store'])->name('depenses.categories.store');
+    Route::patch('/depenses/categories/{categorie}/basculer', [CategorieDepenseController::class, 'basculer'])->name('depenses.categories.basculer');
+    Route::delete('/depenses/categories/{categorie}', [CategorieDepenseController::class, 'destroy'])->name('depenses.categories.destroy');
+    Route::resource('depenses', DepenseController::class)->only(['index', 'store', 'update', 'destroy']);
+
     Route::view('/besoins', 'besoins.index')->name('besoins.index');
     // Flotte (dynamique) : URL /flotte, noms de routes vehicules.*
     Route::patch('/flotte/{vehicule}/maintenance', [VehiculeController::class, 'maintenance'])->name('vehicules.maintenance');
@@ -58,6 +73,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/bulletins/imprimer', [BulletinController::class, 'imprimer'])->name('bulletins.imprimer');
     });
 
-    Route::view('/rapports', 'rapports.index')->name('rapports.index');
+    // Rapports (dynamique)
+    Route::get('/rapports', [RapportController::class, 'index'])->name('rapports.index');
+    Route::get('/rapports/exporter', [RapportController::class, 'exporter'])->name('rapports.exporter');
     Route::view('/parametres', 'parametres.index')->name('parametres.index');
 });

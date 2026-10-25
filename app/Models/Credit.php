@@ -2,17 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\ASourceArgent;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Credit extends Model
 {
+    use ASourceArgent;
+
     protected $table = 'credits';
 
     protected $fillable = [
         'employe_id', 'montant', 'taux', 'duree_mois', 'montant_total', 'mensualite',
-        'date_octroi', 'mois_debut', 'commentaire', 'statut',
+        'date_octroi', 'mois_debut', 'commentaire', 'statut', 'source', 'autre_revenu_id',
     ];
 
     protected function casts(): array
