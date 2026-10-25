@@ -8,6 +8,13 @@
 */
 
 return [
+    // Valeurs proposées par défaut dans le formulaire de location (modifiables à chaque saisie)
+    'taux_change' => (float) env('RENTAL_TAUX_CHANGE', 2650),   // CDF pour 1 USD
+    'commission' => (float) env('RENTAL_COMMISSION', 10),       // en %
+
+    // Alerte flotte (RG-06) quand le % de véhicules disponibles passe sous ce seuil
+    'seuil_disponibilite' => (float) env('RENTAL_SEUIL_DISPONIBILITE', 30),
+
     'photos' => [
         'hero' => ['file' => 'suv-nuit.jpg', 'id' => '1629377856766-72c3bb4c86c6', 'credit' => 'Stefan Briggs'],
         'land-cruiser' => ['file' => 'land-cruiser-desert.jpg', 'id' => '1565081188891-72179dbf09c7', 'credit' => 'Sarvaswa Tandon'],
